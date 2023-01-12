@@ -160,7 +160,7 @@ class BufferPoolManagerInstance : public BufferPoolManager {
   /** List of free frames that don't have any pages on them. */
   std::list<frame_id_t> free_list_;
   /** This latch protects shared data structures. We recommend updating this comment to describe what it protects. */
-  std::mutex latch_;
+  std::mutex latch_;  
 
   /**
    * @brief Allocate a page on disk. Caller should acquire the latch before calling this function.
@@ -177,5 +177,16 @@ class BufferPoolManagerInstance : public BufferPoolManager {
   }
 
   // TODO(student): You may add additional private members and helper functions
+  /**
+   * @brief 2 ways to find clean new frame to store the page: free_list or replacer
+   * @return frame id, otherwise -1
+   */
+  auto FindNewFrame() -> frame_id_t;
+  /**
+   * @brief init the new page
+   * @param frame_id
+   * @param page_id
+   */
+  void InitNewPage(frame_id_t frame_id, page_id_t page_id);
 };
 }  // namespace bustub

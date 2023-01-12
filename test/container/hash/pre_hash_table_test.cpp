@@ -4,7 +4,6 @@
 
 #include <memory>
 #include <thread>  // NOLINT
-
 #include "container/hash/extendible_hash_table.h"
 #include "gtest/gtest.h"
 
