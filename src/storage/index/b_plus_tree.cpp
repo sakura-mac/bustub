@@ -128,7 +128,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   auto parent_page_id = leaf_node->GetParentPageId();
 
   bool ret = leaf_node->Insert(std::move(std::vector<MappingType>{MappingType(key, value)}), comparator_);
-  if (ret == false) {
+  if (!ret) {
     buffer_pool_manager_->UnpinPage(leaf_page_id, false);
     return false;
   }
@@ -142,7 +142,6 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 
     // after split, need to update parent kid
     KeyType new_key = new_leaf_node->KeyAt(0);  // will be insert in parent
-    ValueType new_value;
     leaf_node->SetNextPageId(new_leaf_page_id);  // maintain filed after split
     if (parent_page_id != INVALID_PAGE_ID) {
       auto *parent_page = buffer_pool_manager_->FetchPage(parent_page_id);  // OPTIMISE OPTION
