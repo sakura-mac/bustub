@@ -49,6 +49,13 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
+  auto FindID(const KeyType &key, ValueType *value, KeyComparator &comparator) const -> bool;
+
+  // my function
+  auto LowerBound(int l, int r, const KeyType &key, KeyComparator &comparator) const -> int;
+  auto FindRID(const KeyType &key, ValueType *value, KeyComparator &comparator) const -> bool;
+  auto Insert(std::vector<MappingType> &&vector, KeyComparator &comparator) -> bool;
+  auto Split() -> std::vector<MappingType>;
 
  private:
   page_id_t next_page_id_;
