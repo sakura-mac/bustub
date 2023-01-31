@@ -86,7 +86,7 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   replacer_->RecordAccess(frame_id);
   replacer_->SetEvictable(frame_id, false);
   InitNewPage(frame_id, new_page_id);
-
+  //std::cout << "new pin page " << std::endl;
   return &pages_[frame_id];
 }
 
@@ -98,8 +98,8 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   // bugs in corresponding filed: replacer, because 'lock it' means unevictable(in terms of pin_count)
   frame_id_t frame_id;
   if (page_table_->Find(page_id, frame_id)) {
-    pages_[frame_id].pin_count_++;
-
+    ++pages_[frame_id].pin_count_;
+    //std::cout << "fpin page" << std::endl;
     replacer_->SetEvictable(frame_id, false);
     replacer_->RecordAccess(frame_id);
     return &pages_[frame_id];
@@ -150,12 +150,14 @@ auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> 
   // maintain fields: pin_count, evictable, is_dirty
   frame_id_t frame_id;
   if (!page_table_->Find(page_id, frame_id) || pages_[frame_id].pin_count_ == 0) {
+    //std::cout << "oh no" << std::endl;
     return false;
   }
   if (--pages_[frame_id].pin_count_ == 0) {
     replacer_->SetEvictable(frame_id, true);
   }
   pages_[frame_id].is_dirty_ |= is_dirty;  // bug fix
+  //std::cout << "unpin : pin count: " << pages_[frame_id].pin_count_ << std::endl;
   return true;
 }
 
@@ -165,6 +167,19 @@ auto BufferPoolManagerInstance::AllocatePage() -> page_id_t {
 
 auto BufferPoolManagerInstance::FindNewFrame() -> frame_id_t {
   // first check the free_list, else check cache
+
+  // for test lab2 checkpoint1 bug
+  //std::cout << "find new frame: ";
+  //int count = 0;
+  //for(size_t i = 0; i < pool_size_; i++){
+    //if(pages_[i].pin_count_ > 0){
+      //std::cout << i << " ";
+      //count++;
+    //}
+  //}
+  //std::cout << ". there are " << count << "pin pages" << std::endl;
+  // for test lab2 checkpoint1 bug
+
   frame_id_t frame_id;
   if (!free_list_.empty()) {
     frame_id = free_list_.back();

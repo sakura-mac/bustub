@@ -47,9 +47,10 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   // my function
   auto FindRID(const KeyType &key, KeyComparator comparator) const -> ValueType;
-  void Insert(std::vector<MappingKeyType> &&vector);
+  void Insert(std::vector<MappingKeyType> &&vector, KeyComparator &comparator);
   auto Split(KeyType *parent_key) -> std::vector<MappingKeyType>;
-
+  auto UpperBound(int l, int r, const KeyType &key, KeyComparator &comparator) const -> int;
+ 
  private:
   // Flexible array member for page data.
   MappingType array_[1];

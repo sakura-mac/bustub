@@ -34,7 +34,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, in
   SetPageId(page_id);
   SetParentPageId(parent_id);
   SetNextPageId(INVALID_PAGE_ID);
-  SetMaxSize(max_size);
+  SetMaxSize(max_size); // OPTIMISE OPTION: when init, parent_id and max_size to update
 }
 
 /**
@@ -87,6 +87,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::FindID(const KeyType &key, ValueType *value, Ke
   l = LowerBound(l, r, key, comparator);
 
   // if not find, l will be 0 or size
+  //std::cout << "in the leaf node: l, key" << l << array_[l].first << std::endl;
   if (l != size && comparator(array_[l].first, key) == 0) {
     *value = array_[l].second;
     return true;
@@ -106,7 +107,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(std::vector<MappingType> &&vector, KeyCo
   int leaf_node_size = GetSize();
   int insert_size = vector.size();
   int l = 0;
-  // update self kid
+  // new leaf node 
   if (leaf_node_size == 0) {
     for (int i = 0; i < insert_size; i++) {
       array_[i] = std::move(vector[i]);
@@ -130,6 +131,10 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(std::vector<MappingType> &&vector, KeyCo
   return true;
 }
 
+/*
+ * split the leaf node and return right half part pair
+ * @Return : std::vector<MappingType>
+ */
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::Split() -> std::vector<MappingType> {
   int leaf_node_size = GetSize();
@@ -143,6 +148,17 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Split() -> std::vector<MappingType> {
 
   return ret;
 }
+
+/*
+ * find the specific kv pair and return the reference
+ * @Return : MappingType &
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetPair(int index) -> MappingType & {
+  return array_[index];
+}
+
+
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTreeLeafPage<GenericKey<8>, RID, GenericComparator<8>>;
 template class BPlusTreeLeafPage<GenericKey<16>, RID, GenericComparator<16>>;

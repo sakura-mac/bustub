@@ -56,7 +56,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto FindRID(const KeyType &key, ValueType *value, KeyComparator &comparator) const -> bool;
   auto Insert(std::vector<MappingType> &&vector, KeyComparator &comparator) -> bool;
   auto Split() -> std::vector<MappingType>;
-
+  auto GetPair(int index) -> MappingType &;
  private:
   page_id_t next_page_id_;
   // Flexible array member for page data.

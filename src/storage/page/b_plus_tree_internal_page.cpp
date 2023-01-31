@@ -53,14 +53,11 @@ INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { return array_[index].second; }
 
 /*
- * Helper method to get the RID associated with key
- * @Return : value(child page id)
+ * Helper method to get the upper bound of array_
+ * @Return : uppper bound from 1 to GetSize()
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindID(const KeyType &key, KeyComparator &comparator) const -> ValueType {
-  // find the upper_bound
-  int l = 0;
-  int r = GetSize();  //[)
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::UpperBound(int l, int r, const KeyType &key, KeyComparator &comparator) const -> int{
   while (l < r) {
     int mid = l + (r - l) / 2;
     if (comparator(array_[mid].first, key) > 0) {  // is array_[0].first < key ? yes, key must > 0
@@ -69,7 +66,20 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindID(const KeyType &key, KeyComparator &c
       l = mid + 1;
     }
   }
+  return l;
+} // OPTIMISE OPTION : in usage, it is equal to LowerBound(never be equal in internal search)
 
+/*
+ * Helper method to get the RID associated with key
+ * @Return : value(child page id)
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindID(const KeyType &key, KeyComparator &comparator) const -> ValueType {
+  // find the upper_bound
+  int l = 0;
+  int r = GetSize();  //[)
+  l = UpperBound(l, r, key, comparator);
+  //std::cout << "in the internal node: l-1 , value" << l-1 << array_[l-1].second << std::endl;
   return array_[l - 1].second;
 }
 
@@ -77,16 +87,24 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindID(const KeyType &key, KeyComparator &c
  * Insert kids to array_
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(std::vector<MappingKeyType> &&vector) {
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(std::vector<MappingKeyType> &&vector, KeyComparator &comparator) {
   // append vector to array, for nomal insert(1) or new root(2), OPTIMISE OPTION
   int internal_size = GetSize();
-  int append_size = static_cast<int>(vector.size());
-  int end_size = append_size + internal_size;
-  for (int i = internal_size; i < end_size; i++) {
-    // fill the array
-    array_[i] = std::move(vector[i - internal_size]);
+  int insert_size = static_cast<int>(vector.size());
+  int end_size = insert_size + internal_size;
+  
+  if(insert_size == 1){
+    int l = UpperBound(0, internal_size, vector[0].first, comparator);
+    for(int i = internal_size; i > l; i--){
+      array_[i] = array_[i-1];
+    }
+    array_[l] = vector[0];
+  }else{
+    for(int i = internal_size; i < end_size; i++){
+      array_[i] = vector[i-internal_size];
+    }
   }
-  IncreaseSize(append_size);
+  IncreaseSize(insert_size);
 }
 
 /*
