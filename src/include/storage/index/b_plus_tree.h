@@ -12,6 +12,7 @@
 
 #include <queue>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "concurrency/transaction.h"
@@ -22,6 +23,8 @@
 namespace bustub {
 
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
+
+enum class Operation { kSearch, kInsert, kDelete };
 
 /**
  * Main class providing the API for the Interactive B+ Tree.
@@ -42,11 +45,8 @@ class BPlusTree {
   explicit BPlusTree(std::string name, BufferPoolManager *buffer_pool_manager, const KeyComparator &comparator,
                      int leaf_max_size = LEAF_PAGE_SIZE, int internal_max_size = INTERNAL_PAGE_SIZE);
 
-  // Return true if this B+ tree has no keys and values.
+  // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
-
-  // Split internal node down to up
-  void SplitInternal(InternalPage *internal_node);
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
@@ -54,33 +54,11 @@ class BPlusTree {
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
 
-  // Search the B+ tree until to find the leaf node based on root_page_id_
-  auto FindLeaf(const KeyType &key) -> LeafPage *;
-
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;
-
-  // Check after delete kid or merge
-  template <typename Node>
-  void CheckAfterDOM(Node *node);
-
-  // Merge node
-  template <typename Node>
-  void Merge(Node *node1, Node *node2, InternalPage *parent, int erase_index);
-
-  // Merge node
-  template <typename Node>
-  void BorrowKV(Node *sibling_node, Node *node, bool is_right);
-  // Find the node's sibling
-  template <typename Node>
-  auto FindRSibling(Node *node, Node *sibling_node) -> bool;
-
-  // set leaf as root and delete internal root
-  template <typename Node>
-  void LostRoot(Node *root);
 
   // index iterator
   auto Begin() -> INDEXITERATOR_TYPE;
@@ -100,12 +78,46 @@ class BPlusTree {
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
 
  private:
+  // insert helper function
+  void StartNewTree(const KeyType &key, const ValueType &value);
+
+  auto InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
+
+  void InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
+                        Transaction *txn = nullptr);
+
+  template <typename N>
+  auto Split(N *node) -> N *;
+  // insert helper end
+
+  // delete helper start
+  template <typename N>
+  auto CoalesceOrRedistribute(N *node, Transaction *txn = nullptr, bool is_root_page_id_latched = false) -> bool;
+
+  template <typename N>
+  auto Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
+                int index, Transaction *txn = nullptr, bool is_root_page_id_latched = false) -> bool;
+
+  template <typename N>
+  void Redistribute(N *neighbor_node, N *node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent,
+                    int index, bool is_root_page_id_latched = false);
+
+  auto AdjustRoot(BPlusTreePage *node, bool is_root_page_id_latched = false) -> bool;
+  // delete helper end
+
   void UpdateRootPageId(int insert_record = 0);
 
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
 
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
+
+  void ClearTransactionPageSetAndUnpinEach(Transaction *txn) const;
+
+  // return is root page latched
+  auto FindLeafPageByOperation(const KeyType &key, Operation operation = Operation::kSearch,
+                               Transaction *transaction = nullptr, bool left_most = false, bool right_most = false)
+      -> std::pair<Page *, bool>;
 
   // member variable
   std::string index_name_;
@@ -114,6 +126,7 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  mutable std::mutex root_page_id_latch_;
 };
 
 }  // namespace bustub

@@ -49,19 +49,23 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
-  auto FindID(const KeyType &key, ValueType *value, KeyComparator &comparator) const -> bool;
 
-  // my function
-  auto LowerBound(int l, int r, const KeyType &key, KeyComparator &comparator) const -> int;
-  auto FindRID(const KeyType &key, ValueType *value, KeyComparator &comparator) const -> bool;
-  auto Insert(std::vector<MappingType> &&vector, KeyComparator &comparator) -> bool;
-  auto Split() -> std::vector<MappingType>;
-  auto GetPair(int index) -> MappingType &;
-  void Erase(int index);
-  void MergeTo(BPlusTreeLeafPage *recipient);
-  void BorrowKVFrom(BPlusTreeLeafPage *node, int index);
+  auto KeyIndex(const KeyType &key, const KeyComparator &comparator) const -> int;
+  auto GetItem(int index) -> const MappingType &;
+  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> int;
+  auto LookUp(const KeyType &key, ValueType *value, const KeyComparator &comparator) const -> bool;
+  auto RemoveAndDeleteRecord(const KeyType &key, const KeyComparator &comparator) -> int;
+
+  void MoveHalfTo(BPlusTreeLeafPage *target);
+  void MoveAllTo(BPlusTreeLeafPage *target);
+  void MoveFirstToEndOf(BPlusTreeLeafPage *target);
+  void MoveLastToFrontOf(BPlusTreeLeafPage *target);
 
  private:
+  void CopyNFrom(MappingType *items, int size);
+  void CopyLastFrom(const MappingType &item);
+  void CopyFirstFrom(const MappingType &item);
+
   page_id_t next_page_id_;
   // Flexible array member for page data.
   MappingType array_[1];

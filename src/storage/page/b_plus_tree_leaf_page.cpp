@@ -9,10 +9,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <algorithm>
 #include <sstream>
 
 #include "common/exception.h"
-#include "common/logger.h"
 #include "common/rid.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
 
@@ -34,7 +34,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, in
   SetPageId(page_id);
   SetParentPageId(parent_id);
   SetNextPageId(INVALID_PAGE_ID);
-  SetMaxSize(max_size);  // OPTIMISE OPTION: when init, parent_id and max_size to update
+  SetMaxSize(max_size);
 }
 
 /**
@@ -51,158 +51,127 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) { next_pa
  * array offset)
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType {
-  // replace with your own code
-  return array_[index].first;
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType { return array_[index].first; }
+
+// return first index i that array_[i].first >= key
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const -> int {
+  return std::distance(
+      array_, std::lower_bound(array_, array_ + GetSize(), key, [&comparator](auto &&element, auto &&search_key) {
+        return comparator(element.first, search_key) < 0;
+      }));
 }
 
-/*
- * Helper method to get the lower bound of the array
- * @Return : lower bound
- */
 INDEX_TEMPLATE_ARGUMENTS
-inline auto B_PLUS_TREE_LEAF_PAGE_TYPE::LowerBound(int l, int r, const KeyType &key, KeyComparator &comparator) const
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) -> const MappingType & { return array_[index]; }
+
+// return page size after return
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator)
     -> int {
-  while (l < r) {
-    int mid = l + (r - l) / 2;
-    if (comparator(array_[mid].first, key) >= 0) {
-      r = mid;
-    } else {
-      l = mid + 1;
-    }
+  auto insert_iter = std::lower_bound(
+      array_, array_ + GetSize(), key,
+      [&comparator](auto &&element, auto &&search_key) { return comparator(element.first, search_key) < 0; });
+  if (insert_iter == array_ + GetSize()) {
+    insert_iter->first = key;
+    insert_iter->second = value;
+    IncreaseSize(1);
+    return GetSize();
   }
-  return l;
+
+  if (comparator(insert_iter->first, key) == 0) {
+    return GetSize();
+  }
+
+  std::move_backward(insert_iter, array_ + GetSize(), array_ + GetSize() + 1);
+
+  insert_iter->first = key;
+  insert_iter->second = value;
+  IncreaseSize(1);
+  return GetSize();
 }
 
-/*
- * Helper method to get the RID associated with key
- * @Return : value(child page id)
- */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::FindID(const KeyType &key, ValueType *value, KeyComparator &comparator) const -> bool {
-  // find the value in order
-  int size = GetSize();
-  int l = 0;
-  int r = size;
-  l = LowerBound(l, r, key, comparator);
-
-  // if not find, l will be 0 or size
-  // std::cout << "in the leaf node: l, key" << l << array_[l].first << std::endl;
-  if (l != size && comparator(array_[l].first, key) == 0) {
-    *value = array_[l].second;
-    return true;
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::LookUp(const KeyType &key, ValueType *value, const KeyComparator &comparator) const
+    -> bool {
+  auto insert_iter = std::lower_bound(
+      array_, array_ + GetSize(), key,
+      [&comparator](auto &&element, auto &&search_key) { return comparator(element.first, search_key) < 0; });
+  if (insert_iter == array_ + GetSize() || comparator(insert_iter->first, key) != 0) {
+    return false;
   }
 
-  return false;
-}
-
-/*
- * in my view, leader should make the decision, crews should return the result
- * so node's insert method should update self field
- * if leaf_node empty, insert directly, else bsearch to insert single kv
- * @Return : duplicate key for false, else for true
- */
-INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(std::vector<MappingType> &&vector, KeyComparator &comparator) -> bool {
-  int leaf_node_size = GetSize();
-  int insert_size = vector.size();
-  int l = 0;
-  // new leaf node
-  if (leaf_node_size == 0) {
-    for (int i = 0; i < insert_size; i++) {
-      array_[i] = std::move(vector[i]);
-    }
-
-  } else {
-    // insert into exists leaf node
-    l = LowerBound(l, leaf_node_size, vector[0].first, comparator);
-    if (comparator(array_[l].first, vector[0].first) == 0) {
-      return false;
-    }
-    // leave space for insert kid(only one)
-    for (int i = leaf_node_size; i > l; i--) {
-      array_[i] = array_[i - 1];
-    }
-
-    array_[l] = std::move(vector[0]);
-  }
-
-  IncreaseSize(insert_size);
+  *value = insert_iter->second;
   return true;
 }
 
-/*
- * split the leaf node and return right half part pair
- * @Return : std::vector<MappingType>
- */
+// if key exist, delete it
+// return page size after delete
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::Split() -> std::vector<MappingType> {
-  int leaf_node_size = GetSize();
-  int split_index = leaf_node_size / 2;
-  // remain the field unspecified, is it ok? modify action will based on leaf_node_size, ok
-  std::vector<MappingType> ret(leaf_node_size - split_index);
-  for (int i = split_index; i < leaf_node_size; i++) {
-    ret[i - split_index] = std::move(array_[i]);
-  }
-  SetSize(split_index);
-
-  return ret;
-}
-
-/*
- * find the specific kv pair and return the reference
- * @Return : MappingType &
- */
-INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetPair(int index) -> MappingType & { return array_[index]; }
-
-/*
- * Erase the pair in array
- */
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::Erase(int index) {
-  for (int i = index; i < GetSize(); i++) {  // if set GetSize( ) - 1, case 0 will fail
-    array_[i] = array_[i + 1];
-  }
-}
-
-/*
- * merge the node 
- */
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MergeTo(BPlusTreeLeafPage *recipient) {
-  int index = recipient->GetSize();
-  for (int i = 0; i < GetSize(); i++) {
-    recipient->array_[index + i] = array_[i];
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveAndDeleteRecord(const KeyType &key, const KeyComparator &comparator) -> int {
+  auto insert_iter = std::lower_bound(
+      array_, array_ + GetSize(), key,
+      [&comparator](auto &&element, auto &&search_key) { return comparator(element.first, search_key) < 0; });
+  if (insert_iter == array_ + GetSize() || comparator(insert_iter->first, key) != 0) {
+    return GetSize();
   }
 
-  recipient->SetNextPageId(GetNextPageId());
-  recipient->IncreaseSize(GetSize());
-  SetSize(0);
+  std::move(insert_iter + 1, array_ + GetSize(), insert_iter);
+  IncreaseSize(-1);
+  return GetSize();
 }
 
-/*
- * borrow kv from another node 
- */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::BorrowKVFrom(BPlusTreeLeafPage *node, int index){
-		// 1. borrrow kv  and erase kv
-		auto pair = node->GetPair( index);
-		node->Erase( index);
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *target) {
+  auto start_index = GetMinSize();
+  auto move_size = GetMaxSize() - start_index;
+  target->CopyNFrom(array_ + start_index, move_size);
+  IncreaseSize(-1 * move_size);
+}
 
-		// 2. insert the pair: OPTIMISZE OPTION
-		int size_ = GetSize( );
-		if( index == 0){
-			array_[ size_] = std::move( pair);		
-		}else{
-			for( int i = size_; i > 0 ; i--){
-				array_[ i] = array_[ i-1];
-			}	
-			array_[ 0] = std::move( pair);
-		}
+// update the target next page id to be this's next page id
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *target) {
+  target->CopyNFrom(array_, GetSize());
+  target->SetNextPageId(GetNextPageId());
+  IncreaseSize(-1 * GetSize());
+}
 
-		IncreaseSize( 1);
-} 
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *target) {
+  auto item = GetItem(0);
+  std::move(array_ + 1, array_ + GetSize(), array_);
+  IncreaseSize(-1);
+
+  target->CopyLastFrom(item);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *target) {
+  auto item = GetItem(GetSize() - 1);
+  IncreaseSize(-1);
+
+  target->CopyFirstFrom(item);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyNFrom(MappingType *items, int size) {
+  std::copy(items, items + size, array_ + GetSize());
+  IncreaseSize(size);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &item) {
+  *(array_ + GetSize()) = item;
+  IncreaseSize(1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyFirstFrom(const MappingType &item) {
+  std::move_backward(array_, array_ + GetSize(), array_ + GetSize() + 1);
+  *array_ = item;
+  IncreaseSize(1);
+}
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTreeLeafPage<GenericKey<8>, RID, GenericComparator<8>>;
