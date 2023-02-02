@@ -1,0 +1,14 @@
+Date: 2.1.2022
+. write the LeaveSpace in tree page: next time
+. write the Erase function in internal and leaf: ok 
+. write the FindSibling function: ok
+. write the GetPair function in internal and leaf: ok
+. write the IndexAtValue function in internal: ok
+. write the LostRoot function: ok 
+. write the Merge function: ok
+. write GetMinSize: ok
+. write the MergeTo in internal and leaf: not in internal 
+. write the BorrowKV in internal and leaf:  
+. write the CheckAfterDOM function
+. refactor the Insert to MappingType input: 
+

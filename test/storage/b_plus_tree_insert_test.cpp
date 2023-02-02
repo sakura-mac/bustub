@@ -60,7 +60,7 @@ TEST(BPlusTreeTests, InsertTest1) {
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
-    //std::cout << i <<" to insert key:" << key << std::endl;
+    // std::cout << i <<" to insert key:" << key << std::endl;
     tree.Insert(index_key, rid, transaction);
   }
   std::shuffle(keys.begin(), keys.end(), g);
@@ -70,7 +70,7 @@ TEST(BPlusTreeTests, InsertTest1) {
     i++;
     rids.clear();
     index_key.SetFromInteger(key);
-    //std::cout << i << " to get value key: " << key << std::endl;
+    // std::cout << i << " to get value key: " << key << std::endl;
     tree.GetValue(index_key, &rids);
     EXPECT_EQ(rids.size(), 1);
 
@@ -83,7 +83,7 @@ TEST(BPlusTreeTests, InsertTest1) {
   index_key.SetFromInteger(start_key);
   i = 0;
   for (auto iterator = tree.Begin(index_key); iterator != tree.End(); ++iterator) {
-    //std::cout << ++i << " to iterate the leaf" << std::endl;
+    // std::cout << ++i << " to iterate the leaf" << std::endl;
     auto location = (*iterator).second;
     EXPECT_EQ(location.GetPageId(), 0);
     EXPECT_EQ(location.GetSlotNum(), current_key);
@@ -92,14 +92,14 @@ TEST(BPlusTreeTests, InsertTest1) {
 
   EXPECT_EQ(current_key, keys.size() + 1);
 
-  //std::shuffle(keys.begin(), keys.end(), g);
-  //for (auto key : keys) {
-    //i++;
-    //index_key.SetFromInteger(key);
-    //tree.Remove(index_key, transaction);
+  // std::shuffle(keys.begin(), keys.end(), g);
+  // for (auto key : keys) {
+  // i++;
+  // index_key.SetFromInteger(key);
+  // tree.Remove(index_key, transaction);
   //}
 
-  //EXPECT_EQ(true, tree.IsEmpty());
+  // EXPECT_EQ(true, tree.IsEmpty());
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
 

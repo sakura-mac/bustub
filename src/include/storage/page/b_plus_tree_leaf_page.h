@@ -57,6 +57,10 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto Insert(std::vector<MappingType> &&vector, KeyComparator &comparator) -> bool;
   auto Split() -> std::vector<MappingType>;
   auto GetPair(int index) -> MappingType &;
+  void Erase(int index);
+  void MergeTo(BPlusTreeLeafPage *recipient);
+  void BorrowKVFrom(BPlusTreeLeafPage *node, int index);
+
  private:
   page_id_t next_page_id_;
   // Flexible array member for page data.

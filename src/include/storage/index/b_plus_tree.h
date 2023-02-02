@@ -42,7 +42,7 @@ class BPlusTree {
   explicit BPlusTree(std::string name, BufferPoolManager *buffer_pool_manager, const KeyComparator &comparator,
                      int leaf_max_size = LEAF_PAGE_SIZE, int internal_max_size = INTERNAL_PAGE_SIZE);
 
-  // Returns true if this B+ tree has no keys and values.
+  // Return true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
   // Split internal node down to up
@@ -62,6 +62,25 @@ class BPlusTree {
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;
+
+  // Check after delete kid or merge
+  template <typename Node>
+  void CheckAfterDOM(Node *node);
+
+  // Merge node
+  template <typename Node>
+  void Merge(Node *node1, Node *node2, InternalPage *parent, int erase_index);
+
+  // Merge node
+  template <typename Node>
+  void BorrowKV(Node *sibling_node, Node *node, bool is_right);
+  // Find the node's sibling
+  template <typename Node>
+  auto FindRSibling(Node *node, Node *sibling_node) -> bool;
+
+  // set leaf as root and delete internal root
+  template <typename Node>
+  void LostRoot(Node *root);
 
   // index iterator
   auto Begin() -> INDEXITERATOR_TYPE;

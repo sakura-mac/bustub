@@ -46,11 +46,15 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto FindID(const KeyType &key, KeyComparator &comparator) const -> ValueType;
 
   // my function
-  auto FindRID(const KeyType &key, KeyComparator comparator) const -> ValueType;
   void Insert(std::vector<MappingKeyType> &&vector, KeyComparator &comparator);
   auto Split(KeyType *parent_key) -> std::vector<MappingKeyType>;
   auto UpperBound(int l, int r, const KeyType &key, KeyComparator &comparator) const -> int;
- 
+  auto GetPair(int index) -> MappingType &;
+  void Erase(int index);
+  auto IndexAtValue(page_id_t page_id) -> int;
+  void MergeTo(B_PLUS_TREE_INTERNAL_PAGE_TYPE *recipient, int erase_index, BufferPoolManager *bpm);
+  void BorrowKIDFrom( B_PLUS_TREE_INTERNAL_PAGE_TYPE *node, int index, KeyType &fill_key);
+
  private:
   // Flexible array member for page data.
   MappingType array_[1];

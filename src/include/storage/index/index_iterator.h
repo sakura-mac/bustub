@@ -23,7 +23,7 @@ INDEX_TEMPLATE_ARGUMENTS
 class IndexIterator {
  public:
   // you may define your own constructor based on your member variables
-  IndexIterator(B_PLUS_TREE_LEAF_PAGE_TYPE * leaf_node, int index, BufferPoolManager *bpm);
+  IndexIterator(B_PLUS_TREE_LEAF_PAGE_TYPE *leaf_node, int index, BufferPoolManager *bpm);
   ~IndexIterator();  // NOLINT
 
   auto IsEnd() -> bool;
@@ -32,9 +32,10 @@ class IndexIterator {
 
   auto operator++() -> IndexIterator &;
 
-  auto operator==(const IndexIterator &itr) const -> bool; 
+  auto operator==(const IndexIterator &itr) const -> bool;
 
   auto operator!=(const IndexIterator &itr) const -> bool;
+
  private:
   // add your own private member variables here
   B_PLUS_TREE_LEAF_PAGE_TYPE *leaf_node_;

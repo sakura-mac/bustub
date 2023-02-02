@@ -34,7 +34,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, in
   SetPageId(page_id);
   SetParentPageId(parent_id);
   SetNextPageId(INVALID_PAGE_ID);
-  SetMaxSize(max_size); // OPTIMISE OPTION: when init, parent_id and max_size to update
+  SetMaxSize(max_size);  // OPTIMISE OPTION: when init, parent_id and max_size to update
 }
 
 /**
@@ -87,7 +87,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::FindID(const KeyType &key, ValueType *value, Ke
   l = LowerBound(l, r, key, comparator);
 
   // if not find, l will be 0 or size
-  //std::cout << "in the leaf node: l, key" << l << array_[l].first << std::endl;
+  // std::cout << "in the leaf node: l, key" << l << array_[l].first << std::endl;
   if (l != size && comparator(array_[l].first, key) == 0) {
     *value = array_[l].second;
     return true;
@@ -107,7 +107,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(std::vector<MappingType> &&vector, KeyCo
   int leaf_node_size = GetSize();
   int insert_size = vector.size();
   int l = 0;
-  // new leaf node 
+  // new leaf node
   if (leaf_node_size == 0) {
     for (int i = 0; i < insert_size; i++) {
       array_[i] = std::move(vector[i]);
@@ -154,10 +154,55 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Split() -> std::vector<MappingType> {
  * @Return : MappingType &
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetPair(int index) -> MappingType & {
-  return array_[index];
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetPair(int index) -> MappingType & { return array_[index]; }
+
+/*
+ * Erase the pair in array
+ */
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::Erase(int index) {
+  for (int i = index; i < GetSize(); i++) {  // if set GetSize( ) - 1, case 0 will fail
+    array_[i] = array_[i + 1];
+  }
 }
 
+/*
+ * merge the node 
+ */
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MergeTo(BPlusTreeLeafPage *recipient) {
+  int index = recipient->GetSize();
+  for (int i = 0; i < GetSize(); i++) {
+    recipient->array_[index + i] = array_[i];
+  }
+
+  recipient->SetNextPageId(GetNextPageId());
+  recipient->IncreaseSize(GetSize());
+  SetSize(0);
+}
+
+/*
+ * borrow kv from another node 
+ */
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_LEAF_PAGE_TYPE::BorrowKVFrom(BPlusTreeLeafPage *node, int index){
+		// 1. borrrow kv  and erase kv
+		auto pair = node->GetPair( index);
+		node->Erase( index);
+
+		// 2. insert the pair: OPTIMISZE OPTION
+		int size_ = GetSize( );
+		if( index == 0){
+			array_[ size_] = std::move( pair);		
+		}else{
+			for( int i = size_; i > 0 ; i--){
+				array_[ i] = array_[ i-1];
+			}	
+			array_[ 0] = std::move( pair);
+		}
+
+		IncreaseSize( 1);
+} 
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTreeLeafPage<GenericKey<8>, RID, GenericComparator<8>>;
