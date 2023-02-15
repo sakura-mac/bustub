@@ -9,7 +9,6 @@
 // Copyright (c) 2015-2021, Carnegie Mellon University Database Group
 //
 //===----------------------------------------------------------------------===//
-
 #pragma once
 
 #include <memory>
@@ -55,6 +54,11 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
  private:
   /** The NestedLoopJoin plan node to be executed. */
   const NestedLoopJoinPlanNode *plan_;
+  std::unique_ptr<AbstractExecutor> l_exec_;
+  std::unique_ptr<AbstractExecutor> r_exec_;
+  Tuple l_tuple_;
+  bool l_match_;
+  bool is_final_;
 };
 
 }  // namespace bustub

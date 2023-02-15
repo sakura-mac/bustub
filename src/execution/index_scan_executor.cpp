@@ -13,10 +13,32 @@
 
 namespace bustub {
 IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanPlanNode *plan)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx),
+      plan_(plan),
+      tree_(dynamic_cast<BPlusTreeIndexForOneIntegerColumn *>(
+          exec_ctx_->GetCatalog()->GetIndex(plan->GetIndexOid())->index_.get())),
+      tree_it_(tree_->GetBeginIterator()) {}
 
-void IndexScanExecutor::Init() { throw NotImplementedException("IndexScanExecutor is not implemented"); }
+void IndexScanExecutor::Init() {
+  tree_ = dynamic_cast<BPlusTreeIndexForOneIntegerColumn *>(
+      exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid())->index_.get());
+  tree_it_ = tree_->GetBeginIterator();
+}
 
-auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { return false; }
+auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+  if (tree_it_ == tree_->GetEndIterator()) {
+    return false;
+  }
+
+  *rid = (*tree_it_).second;
+  Tuple emit_tuple{};
+  exec_ctx_->GetCatalog()
+      ->GetTable(exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid())->table_name_)
+      ->table_->GetTuple(*rid, &emit_tuple, exec_ctx_->GetTransaction());
+  *tuple = emit_tuple;
+
+  ++tree_it_;
+  return true;
+}
 
 }  // namespace bustub
