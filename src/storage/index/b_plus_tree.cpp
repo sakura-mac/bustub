@@ -45,7 +45,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   if (!exist) {
     return false;
   }
-  result->emplace_back(v);
+  result->push_back(v);
   return true;
 }
 
@@ -666,8 +666,7 @@ auto BPLUSTREE_TYPE::FindLeafPageByOperation(const KeyType &key, Operation opera
                                              bool left_most, bool right_most) -> std::pair<Page *, bool> {
   root_page_id_latch_.lock();
   auto is_root_page_id_latched = true;
-  // if no root, return false
-  if (root_page_id_ != INVALID_PAGE_ID) {
+  if (root_page_id_ == INVALID_PAGE_ID) {
     root_page_id_latch_.unlock();
     return {nullptr, false};
   }
